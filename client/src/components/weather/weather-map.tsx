@@ -71,39 +71,34 @@ function RadarMapController({
 
     switch (activeLayer) {
       case "precipitation":
-        // Use RainViewer radar data which is more reliable
+        // Use RainViewer API with proper time format - get latest available frame
+        const currentTime = Math.floor(Date.now() / 1000);
+        const roundedTime = Math.floor(currentTime / 600) * 600; // Round to 10 minute intervals
+        
         radarLayer = L.tileLayer(
-          'https://tilecache.rainviewer.com/v2/radar/{time}/256/{z}/{x}/{y}/2/1_1.png',
+          `https://tilecache.rainviewer.com/v2/radar/${roundedTime}/256/{z}/{x}/{y}/2/1_1.png`,
           {
-            attribution: 'RainViewer.com',
+            attribution: '© RainViewer.com',
             opacity: 0.6,
-            maxZoom: 12,
-            time: Math.floor(Date.now() / 600000) * 600000, // Round to nearest 10 minutes
-            errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
-          }
-        );
-        // Replace {time} in URL with actual timestamp
-        const timeStamp = Math.floor(Date.now() / 600000) * 600000;
-        radarLayer = L.tileLayer(
-          `https://tilecache.rainviewer.com/v2/radar/${timeStamp}/256/{z}/{x}/{y}/2/1_1.png`,
-          {
-            attribution: 'RainViewer.com',
-            opacity: 0.6,
-            maxZoom: 12,
-            errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+            maxZoom: 14,
+            tms: false,
+            errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+            crossOrigin: true
           }
         );
         break;
       
       case "clouds":
-        // Use OpenWeatherMap clouds layer (free tier)
+        // Use NOAA/NWS radar which is free and reliable
         radarLayer = L.tileLayer(
-          'https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=demo',
+          'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png',
           {
-            attribution: 'OpenWeatherMap',
-            opacity: 0.5,
+            attribution: '© Iowa State University',
+            opacity: 0.6,
             maxZoom: 12,
-            errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+            tms: false,
+            errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+            crossOrigin: true
           }
         );
         break;
@@ -135,8 +130,8 @@ export default function WeatherMap({ location, className }: WeatherMapProps) {
   const [mapKey, setMapKey] = useState(0); // Force re-render of map
 
   const mapLayers = [
-    { key: "precipitation" as const, label: "Radar Reflectivity", icon: CloudRain, color: "text-blue-600" },
-    { key: "clouds" as const, label: "Satellite Clouds", icon: Cloud, color: "text-gray-600" },
+    { key: "precipitation" as const, label: "Precipitation Radar", icon: CloudRain, color: "text-blue-600" },
+    { key: "clouds" as const, label: "Weather Radar", icon: Cloud, color: "text-gray-600" },
   ];
 
   useEffect(() => {
@@ -251,26 +246,26 @@ Weather Radar & Satellite
                   <span className="text-muted-foreground">Heavy Precipitation</span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-2 italic">
-                  RainViewer Radar Data
+                  RainViewer Live Data
                 </div>
               </div>
             )}
             {activeLayer === "clouds" && (
               <div className="space-y-1">
                 <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-gray-200 rounded border"></div>
-                  <span className="text-muted-foreground">Clear Skies</span>
+                  <div className="w-3 h-3 bg-green-300 rounded border"></div>
+                  <span className="text-muted-foreground">Light Reflectivity</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-gray-400 rounded"></div>
-                  <span className="text-muted-foreground">Thin Clouds</span>
+                  <div className="w-3 h-3 bg-yellow-400 rounded"></div>
+                  <span className="text-muted-foreground">Moderate Reflectivity</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-gray-700 rounded"></div>
-                  <span className="text-muted-foreground">Dense Clouds</span>
+                  <div className="w-3 h-3 bg-red-600 rounded"></div>
+                  <span className="text-muted-foreground">Heavy Reflectivity</span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-2 italic">
-                  OpenWeatherMap Clouds
+                  NOAA/NWS Radar Data
                 </div>
               </div>
             )}
