@@ -11,6 +11,7 @@ import {
   type InsertHourlyForecast
 } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { US_CITIES } from "./data/us-cities";
 
 export interface IStorage {
   // Location methods
@@ -46,30 +47,31 @@ export class MemStorage implements IStorage {
   private hourlyForecast: Map<string, HourlyForecast> = new Map();
 
   constructor() {
-    // Initialize with some default locations
-    const defaultLocations = [
-      { name: "New York", country: "US", state: "NY", lat: 40.7128, lon: -74.0060, zipCode: "10001" },
-      { name: "Los Angeles", country: "US", state: "CA", lat: 34.0522, lon: -118.2437, zipCode: "90001" },
-      { name: "Chicago", country: "US", state: "IL", lat: 41.8781, lon: -87.6298, zipCode: "60601" },
-    ];
-
+    // Initialize with comprehensive US cities database
     const locationIds: string[] = [];
-    defaultLocations.forEach(loc => {
+    US_CITIES.forEach(cityData => {
       const id = randomUUID();
       const location: Location = { 
-        ...loc, 
         id,
-        state: loc.state,
-        zipCode: loc.zipCode
+        name: cityData.name,
+        country: "US",
+        state: cityData.stateCode,
+        lat: cityData.lat,
+        lon: cityData.lon,
+        zipCode: cityData.zipCode ?? null
       };
       this.locations.set(id, location);
       locationIds.push(id);
     });
 
-    // Add sample weather alerts
+    // Add sample weather alerts for major cities
+    const nyLocationId = locationIds.find((id, index) => US_CITIES[index].name === "New York");
+    const laLocationId = locationIds.find((id, index) => US_CITIES[index].name === "Los Angeles");
+    const chicagoLocationId = locationIds.find((id, index) => US_CITIES[index].name === "Chicago");
+    
     const sampleAlerts = [
-      {
-        locationId: locationIds[0], // New York
+      ...(nyLocationId ? [{
+        locationId: nyLocationId,
         title: "Winter Storm Warning",
         description: "Heavy snow expected. Travel may be difficult due to snow-covered roads.",
         severity: "severe",
@@ -78,9 +80,9 @@ export class MemStorage implements IStorage {
         startTime: new Date(),
         endTime: new Date(Date.now() + 12 * 60 * 60 * 1000), // 12 hours from now
         isActive: 1,
-      },
-      {
-        locationId: locationIds[1], // Los Angeles
+      }] : []),
+      ...(laLocationId ? [{
+        locationId: laLocationId,
         title: "Heat Advisory",
         description: "Temperatures may reach dangerous levels. Stay hydrated and avoid prolonged sun exposure.",
         severity: "moderate",
@@ -89,9 +91,9 @@ export class MemStorage implements IStorage {
         startTime: new Date(),
         endTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
         isActive: 1,
-      },
-      {
-        locationId: locationIds[2], // Chicago
+      }] : []),
+      ...(chicagoLocationId ? [{
+        locationId: chicagoLocationId,
         title: "Wind Advisory",
         description: "Strong winds may cause scattered power outages and downed tree limbs.",
         severity: "minor",
@@ -100,7 +102,7 @@ export class MemStorage implements IStorage {
         startTime: new Date(),
         endTime: new Date(Date.now() + 6 * 60 * 60 * 1000), // 6 hours from now
         isActive: 1,
-      },
+      }] : []),
     ];
 
     sampleAlerts.forEach(alert => {
