@@ -1,20 +1,40 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { weatherApi } from "@/lib/weather-api";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { AlertTriangle, Zap, Wind, Snowflake } from "lucide-react";
+import { AlertTriangle, Zap, Wind, Snowflake, Bell, BellRing } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useAlertNotifications } from "@/hooks/use-alert-notifications";
+import { useSettings } from "@/contexts/settings-context";
 
 interface WeatherAlertsProps {
   locationId?: string;
 }
 
 export default function WeatherAlerts({ locationId }: WeatherAlertsProps) {
+  const { settings } = useSettings();
+  const { 
+    checkForNewAlerts, 
+    hasActiveAlerts, 
+    getActiveAlertCount, 
+    getHighestSeverity 
+  } = useAlertNotifications();
+
   const { data: alerts = [], isLoading } = useQuery({
     queryKey: ["/api/alerts", locationId],
     queryFn: () => weatherApi.getWeatherAlerts(locationId),
-    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+    refetchInterval: settings.notificationsEnabled ? 60 * 1000 : 5 * 60 * 1000, // Check every minute if notifications enabled, otherwise every 5 minutes
+    enabled: !!locationId,
   });
+
+  // Check for new alerts whenever alerts data changes
+  useEffect(() => {
+    if (alerts.length > 0) {
+      checkForNewAlerts(alerts);
+    }
+  }, [alerts, checkForNewAlerts]);
 
   const getSeverityIcon = (severity: string) => {
     switch (severity.toLowerCase()) {
@@ -32,14 +52,32 @@ export default function WeatherAlerts({ locationId }: WeatherAlertsProps) {
   const getSeverityClass = (severity: string) => {
     switch (severity.toLowerCase()) {
       case "severe":
-        return "alert-severe";
+        return "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 text-red-900 dark:text-red-100";
       case "moderate":
-        return "alert-moderate";
+        return "bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800 text-orange-900 dark:text-orange-100";
       case "minor":
-        return "alert-minor";
+        return "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-100";
       default:
         return "bg-muted text-muted-foreground";
     }
+  };
+
+  const getSeverityBadgeVariant = (severity: string) => {
+    switch (severity.toLowerCase()) {
+      case "severe":
+        return "destructive";
+      case "moderate":
+        return "secondary";
+      case "minor":
+        return "outline";
+      default:
+        return "outline";
+    }
+  };
+
+  const isAlertActive = (alert: any) => {
+    const now = new Date();
+    return new Date(alert.endTime) > now && new Date(alert.startTime) <= now;
   };
 
   const formatTimeUntil = (date: Date) => {
@@ -60,6 +98,26 @@ export default function WeatherAlerts({ locationId }: WeatherAlertsProps) {
     } else {
       return `${minutes}m`;
     }
+  };
+
+  const renderAlertAreas = (areas: unknown, alertIndex: number) => {
+    if (!areas || !Array.isArray(areas) || areas.length === 0) {
+      return null;
+    }
+    
+    return (
+      <div className="mt-2">
+        {(areas as string[]).map((area, areaIndex) => (
+          <span
+            key={areaIndex}
+            className="text-xs px-2 py-1 bg-black dark:bg-white bg-opacity-20 dark:bg-opacity-20 rounded-full mr-1"
+            data-testid={`text-alert-area-${alertIndex}-${areaIndex}`}
+          >
+            {String(area)}
+          </span>
+        ))}
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -87,66 +145,114 @@ export default function WeatherAlerts({ locationId }: WeatherAlertsProps) {
   return (
     <Card className="overflow-hidden" data-testid="weather-alerts">
       <CardHeader className="px-4 py-3 bg-muted border-b border-border">
-        <h2 className="text-lg font-semibold text-foreground flex items-center">
-          <AlertTriangle className="text-warning mr-2" />
-          Weather Alerts
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground flex items-center">
+            {hasActiveAlerts(alerts) ? (
+              <BellRing className={cn(
+                "mr-2 animate-pulse",
+                getHighestSeverity(alerts) === "severe" ? "text-red-500" :
+                getHighestSeverity(alerts) === "moderate" ? "text-orange-500" :
+                "text-blue-500"
+              )} />
+            ) : (
+              <Bell className="text-muted-foreground mr-2" />
+            )}
+            Weather Alerts
+          </h2>
+          {hasActiveAlerts(alerts) && (
+            <div className="flex items-center space-x-2">
+              <Badge 
+                variant={getSeverityBadgeVariant(getHighestSeverity(alerts))} 
+                className="text-xs"
+                data-testid="badge-active-alerts"
+              >
+                {getActiveAlertCount(alerts)} active
+              </Badge>
+              {settings.notificationsEnabled && (
+                <Badge variant="outline" className="text-xs">
+                  🔔 Live
+                </Badge>
+              )}
+            </div>
+          )}
+        </div>
       </CardHeader>
       
       <CardContent className="p-0">
         {alerts.length === 0 ? (
           <div className="p-4 text-center text-muted-foreground">
-            <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No active weather alerts</p>
+            <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No weather alerts</p>
+            {settings.notificationsEnabled && (
+              <p className="text-xs mt-1 opacity-75">Monitoring for new alerts...</p>
+            )}
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {alerts.map((alert, index) => (
-              <div
-                key={alert.id}
-                className={cn("p-4", getSeverityClass(alert.severity))}
-                data-testid={`alert-${alert.severity}-${index}`}
-              >
-                <div className="flex items-start space-x-3">
-                  {getSeverityIcon(alert.severity)}
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-sm" data-testid={`text-alert-title-${index}`}>
-                      {alert.title}
-                    </h3>
-                    <p className="text-xs opacity-90 mt-1" data-testid={`text-alert-duration-${index}`}>
-                      Until {formatTimeUntil(alert.endTime)}
-                    </p>
-                    <p className="text-xs mt-2 opacity-90" data-testid={`text-alert-description-${index}`}>
-                      {alert.description}
-                    </p>
-                    {alert.areas && Array.isArray(alert.areas) && alert.areas.length > 0 && (
-                      <div className="mt-2">
-                        {(alert.areas as string[]).map((area, areaIndex) => (
-                          <span
-                            key={areaIndex}
-                            className="text-xs px-2 py-1 bg-black bg-opacity-20 rounded-full mr-1"
-                            data-testid={`text-alert-area-${index}-${areaIndex}`}
-                          >
-                            {area}
-                          </span>
-                        ))}
+            {alerts.map((alert, index) => {
+              const isActive = isAlertActive(alert);
+              return (
+                <div
+                  key={alert.id}
+                  className={cn(
+                    "p-4 border-l-4 transition-all duration-200", 
+                    getSeverityClass(alert.severity),
+                    isActive && "shadow-sm",
+                    !isActive && "opacity-60"
+                  )}
+                  data-testid={`alert-${alert.severity}-${index}`}
+                >
+                  <div className="flex items-start space-x-3">
+                    <div className="flex flex-col items-center">
+                      {getSeverityIcon(alert.severity)}
+                      {isActive && (
+                        <div className="mt-1 w-2 h-2 bg-current rounded-full animate-pulse" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between">
+                        <h3 className="font-semibold text-sm" data-testid={`text-alert-title-${index}`}>
+                          {alert.title}
+                        </h3>
+                        <Badge 
+                          variant={getSeverityBadgeVariant(alert.severity)}
+                          className="text-xs ml-2"
+                        >
+                          {alert.severity}
+                        </Badge>
                       </div>
-                    )}
+                      <p className="text-xs opacity-90 mt-1" data-testid={`text-alert-duration-${index}`}>
+                        {isActive ? `Active until ${formatTimeUntil(alert.endTime)}` : 
+                         new Date(alert.startTime) > new Date() ? `Starts ${new Date(alert.startTime).toLocaleTimeString()}` :
+                         "Expired"}
+                      </p>
+                      <p className="text-xs mt-2 opacity-90" data-testid={`text-alert-description-${index}`}>
+                        {alert.description}
+                      </p>
+                      {renderAlertAreas(alert.areas, index)}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
         
         {alerts.length > 0 && (
-          <div className="px-4 py-3 bg-muted border-t border-border">
-            <button 
-              className="text-sm text-primary hover:underline"
-              data-testid="button-view-all-alerts"
-            >
-              View all alerts
-            </button>
+          <div className="px-4 py-3 bg-muted border-t border-border flex justify-between items-center">
+            <div className="text-xs text-muted-foreground">
+              {hasActiveAlerts(alerts) ? (
+                `${getActiveAlertCount(alerts)} of ${alerts.length} alerts active`
+              ) : (
+                `${alerts.length} total alerts (none currently active)`
+              )}
+            </div>
+            {settings.notificationsEnabled && (
+              <div className="text-xs text-muted-foreground flex items-center">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse" />
+                Live updates
+              </div>
+            )}
           </div>
         )}
       </CardContent>

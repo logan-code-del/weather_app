@@ -4,14 +4,16 @@ import { Location } from "@shared/schema";
 import { weatherApi, getCurrentLocation } from "@/lib/weather-api";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/contexts/settings-context";
+import { useAlertNotifications } from "@/hooks/use-alert-notifications";
 import LocationSearch from "@/components/weather/location-search";
 import CurrentWeather from "@/components/weather/current-weather";
 import WeatherAlerts from "@/components/weather/weather-alerts";
 import WeatherForecast from "@/components/weather/weather-forecast";
 import WeatherMap from "@/components/weather/weather-map";
 import SettingsModal from "@/components/settings-modal";
-import { CloudSun, RefreshCw, Settings, Navigation } from "lucide-react";
+import { CloudSun, RefreshCw, Settings, Navigation, BellRing, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 export default function Home() {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
@@ -19,6 +21,21 @@ export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { toast } = useToast();
   const { settings } = useSettings();
+  const { hasActiveAlerts, getActiveAlertCount, getHighestSeverity, checkForNewAlerts } = useAlertNotifications();
+
+  // Query global alerts for notification indicator
+  const { data: globalAlerts = [] } = useQuery({
+    queryKey: ["/api/alerts"],
+    queryFn: () => weatherApi.getWeatherAlerts(),
+    refetchInterval: settings.notificationsEnabled ? 60 * 1000 : 5 * 60 * 1000,
+  });
+
+  // Check for new global alerts and trigger notifications
+  useEffect(() => {
+    if (globalAlerts.length > 0) {
+      checkForNewAlerts(globalAlerts);
+    }
+  }, [globalAlerts, checkForNewAlerts]);
 
   // Try to get user's current location on first load
   useEffect(() => {
@@ -80,6 +97,31 @@ export default function Home() {
                 <CloudSun className="text-primary text-2xl" />
                 <h1 className="text-xl font-bold text-foreground">WeatherScope</h1>
               </div>
+              
+              {/* Global Alert Indicator */}
+              {hasActiveAlerts(globalAlerts) && (
+                <div className="flex items-center space-x-2 ml-4">
+                  <div className="relative">
+                    <BellRing className={`h-5 w-5 animate-pulse ${
+                      getHighestSeverity(globalAlerts) === "severe" ? "text-red-500" :
+                      getHighestSeverity(globalAlerts) === "moderate" ? "text-orange-500" :
+                      "text-blue-500"
+                    }`} />
+                    <div className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full flex items-center justify-center">
+                      <span className="text-xs text-white font-bold">
+                        {getActiveAlertCount(globalAlerts)}
+                      </span>
+                    </div>
+                  </div>
+                  <Badge 
+                    variant={getHighestSeverity(globalAlerts) === "severe" ? "destructive" : "secondary"}
+                    className="text-xs animate-pulse"
+                    data-testid="badge-global-alerts"
+                  >
+                    {getActiveAlertCount(globalAlerts)} Active Alert{getActiveAlertCount(globalAlerts) !== 1 ? 's' : ''}
+                  </Badge>
+                </div>
+              )}
             </div>
             
             <div className="flex-1 max-w-md mx-4">
@@ -87,6 +129,14 @@ export default function Home() {
             </div>
 
             <div className="flex items-center space-x-4">
+              {/* Notification Status Indicator */}
+              {settings.notificationsEnabled && (
+                <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <span className="text-xs font-medium">Live</span>
+                </div>
+              )}
+              
               <Button
                 variant="ghost"
                 size="sm"
