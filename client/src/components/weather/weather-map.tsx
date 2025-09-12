@@ -71,11 +71,23 @@ function RadarMapController({
 
     switch (activeLayer) {
       case "precipitation":
-        // NEXRAD Composite Precipitation Reflectivity (N0R)
+        // Use RainViewer radar data which is more reliable
         radarLayer = L.tileLayer(
-          'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/ridge::USCOMP-N0R/{z}/{x}/{y}.png',
+          'https://tilecache.rainviewer.com/v2/radar/{time}/256/{z}/{x}/{y}/2/1_1.png',
           {
-            attribution: 'NOAA NEXRAD Radar - Iowa State Mesonet',
+            attribution: 'RainViewer.com',
+            opacity: 0.6,
+            maxZoom: 12,
+            time: Math.floor(Date.now() / 600000) * 600000, // Round to nearest 10 minutes
+            errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+          }
+        );
+        // Replace {time} in URL with actual timestamp
+        const timeStamp = Math.floor(Date.now() / 600000) * 600000;
+        radarLayer = L.tileLayer(
+          `https://tilecache.rainviewer.com/v2/radar/${timeStamp}/256/{z}/{x}/{y}/2/1_1.png`,
+          {
+            attribution: 'RainViewer.com',
             opacity: 0.6,
             maxZoom: 12,
             errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
@@ -84,11 +96,11 @@ function RadarMapController({
         break;
       
       case "clouds":
-        // GOES Satellite Infrared Cloud Imagery
+        // Use OpenWeatherMap clouds layer (free tier)
         radarLayer = L.tileLayer(
-          'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/goes-ir/{z}/{x}/{y}.png',
+          'https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=demo',
           {
-            attribution: 'GOES Satellite Imagery - NOAA/Iowa State Mesonet',
+            attribution: 'OpenWeatherMap',
             opacity: 0.5,
             maxZoom: 12,
             errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
@@ -239,7 +251,7 @@ Weather Radar & Satellite
                   <span className="text-muted-foreground">Heavy Precipitation</span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-2 italic">
-                  NEXRAD Radar Reflectivity
+                  RainViewer Radar Data
                 </div>
               </div>
             )}
@@ -258,7 +270,7 @@ Weather Radar & Satellite
                   <span className="text-muted-foreground">Dense Clouds</span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-2 italic">
-                  GOES Satellite Imagery
+                  OpenWeatherMap Clouds
                 </div>
               </div>
             )}
@@ -277,7 +289,7 @@ Weather Radar & Satellite
           {/* Instructions overlay */}
           <div className="absolute bottom-4 left-4 right-4 bg-black/80 text-white px-3 py-2 rounded-lg text-xs text-center z-[1000]">
             <p>
-NEXRAD Radar & GOES Satellite data • Click and drag to explore • Use mouse wheel to zoom • Real-time weather imagery
+Weather radar & satellite data • Click and drag to explore • Use mouse wheel to zoom • Real-time weather imagery
             </p>
           </div>
         </div>
