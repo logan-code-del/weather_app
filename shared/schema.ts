@@ -104,3 +104,33 @@ export type InsertForecastData = z.infer<typeof insertForecastDataSchema>;
 
 export type HourlyForecast = typeof hourlyForecast.$inferSelect;
 export type InsertHourlyForecast = z.infer<typeof insertHourlyForecastSchema>;
+
+// Settings types
+export type TemperatureUnit = "fahrenheit" | "celsius";
+export type Theme = "light" | "dark" | "system";
+export type RefreshInterval = 15 | 30 | 60; // minutes
+
+export interface UserSettings {
+  temperatureUnit: TemperatureUnit;
+  theme: Theme;
+  notificationsEnabled: boolean;
+  autoRefreshInterval: RefreshInterval;
+  autoDetectLocation: boolean;
+}
+
+export const defaultSettings: UserSettings = {
+  temperatureUnit: "fahrenheit",
+  theme: "system",
+  notificationsEnabled: true,
+  autoRefreshInterval: 30,
+  autoDetectLocation: true,
+};
+
+// Settings validation schema
+export const userSettingsSchema = z.object({
+  temperatureUnit: z.enum(["fahrenheit", "celsius"]),
+  theme: z.enum(["light", "dark", "system"]),
+  notificationsEnabled: z.boolean(),
+  autoRefreshInterval: z.union([z.literal(15), z.literal(30), z.literal(60)]),
+  autoDetectLocation: z.boolean(),
+});

@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { weatherApi } from "@/lib/weather-api";
+import { useSettings } from "@/contexts/settings-context";
+import { getTemperatureInUnit } from "@/lib/temperature";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Calendar, Clock, Droplets, Sun, Cloud, CloudRain, Snowflake } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,16 +11,17 @@ interface WeatherForecastProps {
 }
 
 export default function WeatherForecast({ locationId }: WeatherForecastProps) {
+  const { settings } = useSettings();
   const { data: forecast = [], isLoading: forecastLoading } = useQuery({
     queryKey: ["/api/forecast", locationId],
     queryFn: () => weatherApi.getForecast(locationId),
-    refetchInterval: 60 * 60 * 1000, // Refetch every hour
+    refetchInterval: settings.autoRefreshInterval * 60 * 1000, // Use user's refresh interval
   });
 
   const { data: hourly = [], isLoading: hourlyLoading } = useQuery({
     queryKey: ["/api/hourly", locationId],
     queryFn: () => weatherApi.getHourlyForecast(locationId),
-    refetchInterval: 60 * 60 * 1000, // Refetch every hour
+    refetchInterval: settings.autoRefreshInterval * 60 * 1000, // Use user's refresh interval
   });
 
   const getWeatherIcon = (icon?: string, condition?: string) => {
@@ -143,10 +146,10 @@ export default function WeatherForecast({ locationId }: WeatherForecastProps) {
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="font-semibold" data-testid={`text-day-high-${index}`}>
-                      {Math.round(day.highTemp)}°
+                      {Math.round(getTemperatureInUnit(day.highTemp, settings.temperatureUnit))}°
                     </span>
                     <span className="text-muted-foreground" data-testid={`text-day-low-${index}`}>
-                      {Math.round(day.lowTemp)}°
+                      {Math.round(getTemperatureInUnit(day.lowTemp, settings.temperatureUnit))}°
                     </span>
                   </div>
                   <div className="flex items-center justify-center mt-2 text-xs text-muted-foreground">
@@ -192,7 +195,7 @@ export default function WeatherForecast({ locationId }: WeatherForecastProps) {
                     {getWeatherIcon(hour.conditionIcon, hour.condition)}
                   </div>
                   <div className="text-sm font-medium mb-1" data-testid={`text-hour-temp-${index}`}>
-                    {Math.round(hour.temperature)}°
+                    {Math.round(getTemperatureInUnit(hour.temperature, settings.temperatureUnit))}°
                   </div>
                   <div className="flex items-center justify-center text-xs text-muted-foreground">
                     <Droplets className="mr-1 h-3 w-3" />

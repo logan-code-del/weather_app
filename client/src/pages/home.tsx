@@ -3,26 +3,32 @@ import { useQuery } from "@tanstack/react-query";
 import { Location } from "@shared/schema";
 import { weatherApi, getCurrentLocation } from "@/lib/weather-api";
 import { useToast } from "@/hooks/use-toast";
+import { useSettings } from "@/contexts/settings-context";
 import LocationSearch from "@/components/weather/location-search";
 import CurrentWeather from "@/components/weather/current-weather";
 import WeatherAlerts from "@/components/weather/weather-alerts";
 import WeatherForecast from "@/components/weather/weather-forecast";
 import WeatherMap from "@/components/weather/weather-map";
+import SettingsModal from "@/components/settings-modal";
 import { CloudSun, RefreshCw, Settings, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const { toast } = useToast();
+  const { settings } = useSettings();
 
   // Try to get user's current location on first load
   useEffect(() => {
     const initializeLocation = async () => {
       try {
-        const coords = await getCurrentLocation();
-        const location = await weatherApi.getLocationByCoords(coords);
-        setSelectedLocation(location);
+        if (settings.autoDetectLocation) {
+          const coords = await getCurrentLocation();
+          const location = await weatherApi.getLocationByCoords(coords);
+          setSelectedLocation(location);
+        }
       } catch (error) {
         // Silently fall back to default location or show search
         console.log("Could not get current location:", error);
@@ -30,7 +36,7 @@ export default function Home() {
     };
 
     initializeLocation();
-  }, []);
+  }, [settings.autoDetectLocation]);
 
   const handleLocationSelect = (location: Location) => {
     setSelectedLocation(location);
@@ -94,6 +100,7 @@ export default function Home() {
               <Button
                 variant="ghost"
                 size="sm"
+                onClick={() => setSettingsOpen(true)}
                 title="Settings"
                 data-testid="button-settings"
               >
@@ -163,6 +170,12 @@ export default function Home() {
           </Button>
         </div>
       )}
+      
+      {/* Settings Modal */}
+      <SettingsModal 
+        open={settingsOpen} 
+        onOpenChange={setSettingsOpen}
+      />
     </div>
   );
 }

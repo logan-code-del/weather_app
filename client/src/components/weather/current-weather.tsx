@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Location } from "@shared/schema";
 import { weatherApi } from "@/lib/weather-api";
+import { useSettings } from "@/contexts/settings-context";
+import { formatTemperatureInUnit, getTemperatureInUnit } from "@/lib/temperature";
 import { Card } from "@/components/ui/card";
 import { MapPin, Droplets, Wind, Compass, CloudRain, Eye, Gauge, Sun, Sunrise, Sunset, Cloud } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,10 +14,11 @@ interface CurrentWeatherProps {
 }
 
 export default function CurrentWeather({ location, isRefreshing }: CurrentWeatherProps) {
+  const { settings } = useSettings();
   const { data: weatherData, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/weather", location.id],
     queryFn: () => weatherApi.getCurrentWeather(location.id),
-    refetchInterval: 30 * 60 * 1000, // Refetch every 30 minutes
+    refetchInterval: settings.autoRefreshInterval * 60 * 1000, // Use user's refresh interval
   });
 
   if (isLoading) {
@@ -101,16 +104,16 @@ export default function CurrentWeather({ location, isRefreshing }: CurrentWeathe
             </div>
             <div className="flex items-baseline space-x-2">
               <span className="text-5xl font-bold" data-testid="text-temperature">
-                {Math.round(weather.temperature)}°
+                {Math.round(getTemperatureInUnit(weather.temperature, settings.temperatureUnit))}°
               </span>
-              <span className="text-lg opacity-90">F</span>
+              <span className="text-lg opacity-90">{settings.temperatureUnit === "fahrenheit" ? "F" : "C"}</span>
             </div>
             <div className="flex items-center space-x-4 mt-2">
               <span className="text-sm opacity-90 capitalize" data-testid="text-condition">
                 {weather.condition}
               </span>
               <span className="text-xs opacity-75">
-                Feels like <span data-testid="text-feels-like">{Math.round(weather.feelsLike)}°</span>
+                Feels like <span data-testid="text-feels-like">{Math.round(getTemperatureInUnit(weather.feelsLike, settings.temperatureUnit))}°</span>
               </span>
             </div>
           </div>
