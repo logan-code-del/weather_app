@@ -22,12 +22,22 @@ export default function WeatherAlerts({ locationId }: WeatherAlertsProps) {
     getHighestSeverity 
   } = useAlertNotifications();
 
-  const { data: alerts = [], isLoading } = useQuery({
+  const { data: locationAlerts = [], isLoading: isLocationLoading } = useQuery({
     queryKey: ["/api/alerts", locationId],
     queryFn: () => weatherApi.getWeatherAlerts(locationId),
     refetchInterval: settings.notificationsEnabled ? 60 * 1000 : 5 * 60 * 1000, // Check every minute if notifications enabled, otherwise every 5 minutes
     enabled: !!locationId,
   });
+
+  const { data: globalAlerts = [], isLoading: isGlobalLoading } = useQuery({
+    queryKey: ["/api/alerts"],
+    queryFn: () => weatherApi.getWeatherAlerts(),
+    refetchInterval: settings.notificationsEnabled ? 60 * 1000 : 5 * 60 * 1000,
+    enabled: locationAlerts.length === 0, // Only fetch global alerts if no location alerts
+  });
+
+  const alerts = locationAlerts.length > 0 ? locationAlerts : globalAlerts;
+  const isLoading = locationId ? isLocationLoading : isGlobalLoading;
 
   // Check for new alerts whenever alerts data changes
   useEffect(() => {
@@ -183,6 +193,9 @@ export default function WeatherAlerts({ locationId }: WeatherAlertsProps) {
           <div className="p-4 text-center text-muted-foreground">
             <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">No weather alerts</p>
+            {locationId && (
+              <p className="text-xs mt-1 opacity-75">for selected location</p>
+            )}
             {settings.notificationsEnabled && (
               <p className="text-xs mt-1 opacity-75">Monitoring for new alerts...</p>
             )}
@@ -245,6 +258,11 @@ export default function WeatherAlerts({ locationId }: WeatherAlertsProps) {
                 `${getActiveAlertCount(alerts)} of ${alerts.length} alerts active`
               ) : (
                 `${alerts.length} total alerts (none currently active)`
+              )}
+              {locationAlerts.length === 0 && globalAlerts.length > 0 && (
+                <div className="mt-1 text-xs opacity-75">
+                  Showing global alerts (no local alerts)
+                </div>
               )}
             </div>
             {settings.notificationsEnabled && (
