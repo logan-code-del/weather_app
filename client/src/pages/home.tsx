@@ -122,7 +122,7 @@ export default function Home() {
                   onRefresh={handleRefresh}
                   isRefreshing={isRefreshing}
                 />
-                <WeatherMap />
+                <WeatherMap location={selectedLocation} />
                 <WeatherForecast locationId={selectedLocation.id} />
               </>
             )}
